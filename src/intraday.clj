@@ -62,16 +62,15 @@
     (log/trace "Received" (format "%,d" length) "bytes in" (:request-time res) "ms")
     (if (str/ends-with? body "\"")
       body
-      (str body "00\"")))
+      (str body "00\""))))
 
-  (defn parse [data idx]
-    (for [row (rest (csv/read-csv data))
-          :let [time   (get row (:time idx))
-                price  (str/replace (get row (:price idx)) "," "")
-                volume (str/replace (get row (:volume idx)) "," "")]
-          :when (not (str/blank? volume))]
-      {:time time :price price :volume volume})))
-
+(defn parse [data idx]
+  (for [row (rest (csv/read-csv data))
+        :let [time   (get row (:time idx))
+              price  (str/replace (get row (:price idx)) "," "")
+              volume (str/replace (get row (:volume idx)) "," "")]
+        :when (not (str/blank? volume))]
+    {:time time :price price :volume volume}))
 (defn save [rows symbol]
   (let [filepath (str "../data.intraday/" date "/" symbol ".txt")]
     (clojure.java.io/make-parents filepath)
