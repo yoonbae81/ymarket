@@ -8,13 +8,15 @@
 
 (defmacro redis [& body] `(r/wcar (env :redis-stock) ~@body))
 
-(def etf (set (redis (r/smembers "etf"))))
+(def ETFs (set (redis (r/smembers "etf"))))
+(def date (.format (java.text.SimpleDateFormat. "yyyy-MM-dd") (new java.util.Date)))
+(def line-protocol "intraday,symbol=%s price=%s,volume=%s %s")
 
-(def counter (atom -1))
+(def counter (atom 1000))
 (defn next-value
   []
-  (when (< 999 @counter) (reset! counter -1))
-  (swap! counter inc))
+  (when (zero? @counter) (reset! counter 1000))
+  (swap! counter dec))
 
 (defn get-timestamp [date time millisec]
   ; (t.EpochMilli (java.time.Instant/parse "2018-04-18T12:34:56Z"))
@@ -24,67 +26,102 @@
       ;      (- 32400000)                                          ; +09:00 to UTC
       (+ millisec)))
 
-(defn get-otp [url, fullcode]
-  (log/debug "Requesting OTP")
-  (let [res (client/post
+(defn post [url options]
+  (loop [retry 3]
+    (if-let [res (try
+                   (client/post url
+                                (merge options
+                                       {:socket-timeout 90000
+                                        :conn-timeout   3000}))
+                   (catch Exception e
+                     (log.error "Failed")
+                     (if (zero? retry)
+                       {:body "" :length 0 :request-timnde 9999}
+                       nil)))]
+      res
+      (recur (dec retry)))))
+
+(defn get-otp [url fullcode]
+  (log/trace "Requesting OTP")
+  (let [res (post
               "http://marketdata.krx.co.kr/contents/COM/GenerateOTP.jspx"
               {:form-params {:name      "fileDown"
                              :filetype  "csv"
                              :url       url
                              :isu_cd    fullcode
                              :aceString "1"}})]
-    (log/info "Received" (:length res) "bytes in" (:request-time res) "ms")
+    (log/trace "Received" (:length res) "bytes in" (:request-time res) "ms")
     (:body res)))
 
 (defn fetch [otp]
-  (log/debug "Downloading Data")
-  (let [res (client/post "http://file.krx.co.kr/download.jspx"
-                         {:form-params {:code otp}})]
-    (log/info "Received" (:length res) "bytes in" (:request-time res) "ms")
-    (:body res)))
+  (log/trace "Requesting Data")
+  (let [res    (post "http://file.krx.co.kr/download.jspx"
+                     {:form-params {:code otp}})
+        length (:length res)
+        body   (:body res)]
+    (log/trace "Received" (format "%,d" length) "bytes in" (:request-time res) "ms")
+    (if (str/ends-with? body "\"")
+      body
+      (str body "00\""))))
 
-(defn parse [data]
-  (log/info "Saving to Redis")
-  ; ETF
-  ; 주식 ["﻿총곗수" "시분초" "종목현재가" "대비" "거래량" "거래대금"]
-  (doseq [row (rest (csv/read-csv data))]
-    ))
+(defn parse [data idx]
+  (for [row (rest (csv/read-csv data))
+        :let [time   (get row (:time idx))
+              price  (str/replace (get row (:price idx)) "," "")
+              volume (str/replace (get row (:volume idx)) "," "")]
+        :when (not (str/blank? volume))]
+    {:time time :price price :volume volume}))
 
-(def urls
-  {:etf        "MKD/08/0801/08010700/mkd08010700_02"
-   :securities "MKD/04/0402/04020100/mkd04020100t3_01"})
+(defn save [rows symbol]
+  (let [filepath (str "../data.intraday/" date "/" symbol ".txt")]
+    (clojure.java.io/make-parents filepath)
 
-(defn single [symbol]
-  (contains? etf (str "stock:" "091160"))
+    (with-open [w (clojure.java.io/writer filepath)]
+      (binding [*out* w]
+        (println "# DDL")
+        (println "CREATE DATABASE KRX")
+        (println "# DML")
+        (println "# CONTEXT-DATABASE: KRX")
+
+        (doseq [row rows
+                :let [time      (:time row)
+                      millisec  (next-value)
+                      timestamp (get-timestamp date time millisec)
+                      price     (:price row)
+                      volume    (:volume row)]]
+          (println (format line-protocol
+                           symbol price volume timestamp)))))))
+
+(defn run [symbol]
+  (log/info "Downloading" symbol (redis (r/hget symbol "name")))
+  (let [url      (if (contains? ETFs symbol)
+                   "MKD/08/0801/08010700/mkd08010700_02"
+                   "MKD/04/0402/04020100/mkd04020100t3_01")
+        fullcode (redis (r/hget symbol "fullcode"))
+        idx      (if (contains? ETFs symbol)
+                   {:time 0 :price 1 :volume 6}
+                   {:time 1 :price 2 :volume 4})]
+    (-> (get-otp url fullcode)
+        (fetch)
+        (parse idx)
+        (save (str/replace symbol "stock:" "")))))
+
+(comment
+  (def symbol "stock:015760")
+  (def symbol "stock:005930")
+  (def symbol "stock:112240")
+  (def symbol "stock:069500")                               ; KODEX200                              ;
+  (run symbol)
+  (def data
+    (-> (get-otp "MKD/04/0402/04020100/mkd04020100t3_01"
+                 (redis (r/hget symbol "fullcode")))
+        (fetch)))
+
+  (parse data {:time 1 :price 2 :volume 4})
   )
 
 (defn -main []
-  (log/info "일간 주가변동 (from KRX)")
-
-  (def date (.format (java.text.SimpleDateFormat. "yyyy-MM-dd") (new java.util.Date)))
-
-  (-> (get-otp)
-      (fetch)
-      (parse)))
-
-(comment
-  (def fullcode "KR7032681009")
-  (def stocks (redis (r/keys "stock:*")))
-  (def stock (redis (r/hgetall* (first stocks))))
-  (def etf (redis (r/smembers "etf")))
-
+  (log/info "Intraday Prices (from KRX)")
   (doseq [symbol (redis (r/keys "stock:*"))
           :let [stock (redis (r/hgetall* symbol))]]
-    (println stock))
-
-  (def res
-    (-> (get-otp "MKD/04/0402/04020100/mkd04020100t3_01"
-                 "KR7032681009")
-        (fetch)))
-  (doseq [row (rest (csv/read-csv res))
-          :let [time   (get row 1)
-                price  (str/replace (get row 2) "," "")
-                volume (str/replace (get row 4) "," "")]]
-    (println time price volume))
-
-  )
+    (run symbol)))
