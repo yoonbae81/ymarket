@@ -9,7 +9,7 @@
 
 (defn fetch
   [url]
-  (log/info "Requesting Data:" url)
+  (log/debug "Downloading Data from " url)
   (let [res  (client/get url {:as :byte-array})
         body (:body res)]
     (log/info "Received in" (:request-time res) "ms")

@@ -18,7 +18,7 @@
     (:body res)))
 
 (defn fetch [otp]
-  (log/info "Requesting Data")
+  (log/debug "Downloading Data")
   (let [res
         (client/post "http://marketdata.krx.co.kr/contents/MKD/99/MKD99000001.jspx"
                      {:form-params {:code   otp

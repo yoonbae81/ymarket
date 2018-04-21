@@ -1,5 +1,6 @@
 (ns yquant.stock.price.intraday2lp
-  (:require [clojure.java.io :as io]
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io]
             [clojure.data.csv :as csv]))
 
 (def counter (atom -1))
@@ -26,12 +27,16 @@
   (println "# CONTEXT-DATABASE: KRX")
 
   (with-open [reader (io/reader filepath)]
-    (doseq [row (csv/read-csv reader :separator \space)]
-      (let [time      (get row 0)
-            millisec  (next-value)
-            timestamp (get-timestamp date time millisec)
-            symbol    (get row 1)
-            price     (get row 2)
-            volume    (get row 3)]
-        (println (format line-protocol
-                         symbol price volume timestamp))))))
+    (doseq [row (csv/read-csv reader :separator \space)
+            :let [time      (get row 0)
+                  millisec  (next-value)
+                  timestamp (get-timestamp date time millisec)
+                  symbol    (get row 1)
+                  price     (str/replace (get row 2) ",", "")
+                  volume    (str/replace (get row 3) ",", "")]
+            :when (not (str/blank? volume))]
+      (println (format line-protocol
+                       symbol price volume timestamp)))))
+
+(comment
+  (-main "/home/y/test/2018-04-21.txt"))
