@@ -1,49 +1,47 @@
-(ns yquant.data.stock.securities
+(ns yquant.stock.price.intraday
   (:require [environ.core :refer [env]]
             [clj-http.client :as client]
             [clojure.data.json :as json]
             [taoensso.carmine :as r]
-            [taoensso.timbre :as log]
-            [clojure.string :as str]))
+            [taoensso.timbre :as log]))
 
-(def target "종목코드-유가증권 (KRX)")
+(defmacro redis [& body] `(r/wcar (env :redis-stock) ~@body))
 
 (defn get-otp []
-  (log/info "Requesting OTP:" target)
+  (log/info "Requesting OTP")
   (let [res (client/post
               "http://marketdata.krx.co.kr/contents/COM/GenerateOTP.jspx"
-              {:form-params {:name "form"
-                             :bld  "COM/finder_stkisu"}})]
+              {:form-params {:name "fileDown"
+                             :filetype "csv"
+                             :url }})]
     (log/info "Received" (:length res) "bytes in" (:request-time res) "ms")
     (:body res)))
 
 (defn fetch [otp]
-  (log/info "Requesting Data:" target)
+  (log/info "Requesting Data")
   (let [res
         (client/post "http://marketdata.krx.co.kr/contents/MKD/99/MKD99000001.jspx"
-                     {:form-params {:code   otp
-                                    :mktsel "ALL"}})]
+                     {:form-params {:code otp}})]
     (log/info "Received" (:length res) "bytes in" (:request-time res) "ms")
     (:body res)))
 
-(def -conn (env :redis-stock))
-(defmacro redis [& body] `(r/wcar -conn ~@body))
-
 (defn save [data]
-  (log/info "Saving to" -conn)
+  (log/info "Saving to Redis")
   (doseq [row (get (json/read-str data) "block1")]
-    (let [symbol     (subs (get row "short_code") 1)          ; delete preceding A
-          name     (get row "codeName")
-          market   (str/lower-case (get row "marketName"))
-          fullcode (get row "full_code")]
+    (let [symbol   (subs (get row "value") 3 9)
+          name     (get row "label")
+          market   "kospi"
+          fullcode (get row "value")]
       (log/debug symbol name)
       (redis (r/hmset (str "stock:" symbol)
                       "name" name
                       "market" market
                       "fullcode" fullcode)
-             (r/sadd market (str "stock:" symbol))))))
+             (r/sadd market (str "stock:" symbol))
+             (r/sadd "etf" (str "stock:" symbol))))))
 
-(defn main []
+(defn -main []
+  (log/info "ETF 종목코드 (from KRX)")
   (-> (get-otp)
       (fetch)
       (save)))
