@@ -1,4 +1,4 @@
-(ns yquant.stock.price.intraday
+(ns intraday
   (:require [environ.core :refer [env]]
             [clj-http.client :as client]
             [clojure.string :as str]
@@ -34,7 +34,7 @@
                                        {:socket-timeout 90000
                                         :conn-timeout   3000}))
                    (catch Exception e
-                     (log.error "Failed")
+                     (log/error "Failed")
                      (if (zero? retry)
                        {:body "" :length 0 :request-timnde 9999}
                        nil)))]
@@ -62,15 +62,15 @@
     (log/trace "Received" (format "%,d" length) "bytes in" (:request-time res) "ms")
     (if (str/ends-with? body "\"")
       body
-      (str body "00\""))))
+      (str body "00\"")))
 
-(defn parse [data idx]
-  (for [row (rest (csv/read-csv data))
-        :let [time   (get row (:time idx))
-              price  (str/replace (get row (:price idx)) "," "")
-              volume (str/replace (get row (:volume idx)) "," "")]
-        :when (not (str/blank? volume))]
-    {:time time :price price :volume volume}))
+  (defn parse [data idx]
+    (for [row (rest (csv/read-csv data))
+          :let [time   (get row (:time idx))
+                price  (str/replace (get row (:price idx)) "," "")
+                volume (str/replace (get row (:volume idx)) "," "")]
+          :when (not (str/blank? volume))]
+      {:time time :price price :volume volume})))
 
 (defn save [rows symbol]
   (let [filepath (str "../data.intraday/" date "/" symbol ".txt")]

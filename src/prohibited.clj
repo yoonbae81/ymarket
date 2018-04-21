@@ -1,4 +1,4 @@
-(ns yquant.stock.symbol.prohibited
+(ns prohibited
   (:require [environ.core :refer [env]]
             [clj-http.client :as client]
             [clojure.string :as str]

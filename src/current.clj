@@ -1,4 +1,4 @@
-(ns yquant.stock.price.current
+(ns current
   (:require [environ.core :refer [env]]
             [taoensso.carmine :as r]
             [taoensso.timbre :as log]

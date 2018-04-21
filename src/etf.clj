@@ -1,4 +1,4 @@
-(ns yquant.stock.symbol.etf
+(ns etf
   (:require [environ.core :refer [env]]
             [clj-http.client :as client]
             [clojure.data.json :as json]

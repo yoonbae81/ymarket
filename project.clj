@@ -14,7 +14,7 @@
                  [com.taoensso/carmine "2.18.0"]
                  [environ "1.1.0"]
                  ]
-  :main ^:skip-aot core
+  ;  :main ^:skip-aot core
   :resource-paths ["resources" "target/resources"]
   :profiles
   {:repl    {:prep-tasks   ^:replace ["javac" "compile"]

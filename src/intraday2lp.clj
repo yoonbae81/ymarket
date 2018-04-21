@@ -1,4 +1,4 @@
-(ns yquant.stock.price.intraday2lp
+(ns intraday2lp
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [clojure.data.csv :as csv]))

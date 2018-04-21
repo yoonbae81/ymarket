@@ -1,4 +1,4 @@
-(ns yquant.stock.symbol.value
+(ns value
   (:require [environ.core :refer [env]]
             [clj-http.client :as client]
             [clojure.data.csv :as csv]

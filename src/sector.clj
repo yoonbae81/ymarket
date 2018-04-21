@@ -1,4 +1,4 @@
-(ns yquant.stock.symbol.sector
+(ns sector
   (:require [environ.core :refer [env]]
             [taoensso.carmine :as r]
             [taoensso.timbre :as log]
