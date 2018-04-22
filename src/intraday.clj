@@ -1,6 +1,7 @@
 (ns intraday
   (:require [environ.core :refer [env]]
             [clj-http.client :as client]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [taoensso.carmine :as r]
             [taoensso.timbre :as log]))
@@ -10,7 +11,51 @@
 (def ETFs (set (redis (r/smembers "etf"))))
 (def date (.format (java.text.SimpleDateFormat. "yyyy-MM-dd") (new java.util.Date)))
 (def basedir (str "../data.intraday/" date))
-(def lp-format "intraday,symbol=%s price=%s,volume=%s %s")
+
+(defn post [url options]
+  (loop [retry 2]
+    (if-let [res (try (client/post url options)
+                      (catch Exception e
+                        (log/error "Response Timeout")))]
+      (if (= 200 (:status res))
+        res
+        (log/error (format "Response Error (Status:%s)" (:status res))))
+      (recur (dec retry)))))
+
+(defn fetch [symbol]
+  (let [fullcode (redis (r/hget symbol "fullcode"))
+        url      (if (contains? ETFs symbol)
+                   "MKD/08/0801/08010700/mkd08010700_02"
+                   "MKD/04/0402/04020100/mkd04020100t3_01")
+        params   {:name      "fileDown"
+                  :filetype  "csv"
+                  :isu_cd    fullcode
+                  :url       url
+                  :aceString "1"}
+        otp      (post "http://marketdata.krx.co.kr/contents/COM/GenerateOTP.jspx"
+                       {:form-params params})
+        res      (post "http://file.krx.co.kr/download.jspx"
+                       {:form-params    {:code otp}
+                        :socket-timeout 180000
+                        :conn-timeout   3000})]
+    (when res (log/debug "Received" (:length res) "bytes in" (:request-time res) "ms"))
+    (:body res)))
+
+(defn parse [symbol data]
+  (when (not (str/blank? data))
+    (let [idx (if (contains? ETFs symbol)
+                {:count 7 :time 0 :price 1 :volume 6}
+                {:count 6 :time 1 :price 2 :volume 4})]
+      (for [line (rest (str/split-lines data))
+            :let [row (-> line
+                          (str/replace #"(\d),(\d)" "$1$2")
+                          (str/replace #"\"" "")
+                          (str/split #","))]
+            :when (= (count row) (:count idx))]
+        (let [time   (get row (:time idx))
+              price  (get row (:price idx))
+              volume (get row (:volume idx))]
+          {:time time :price price :volume volume})))))
 
 (def counter (atom 1000))
 (defn next-value []
@@ -26,60 +71,10 @@
       ; (- 32400000)
       (+ millisec)))
 
-(defn post [url options]
-  (let [opts (merge options
-                    {:socket-timeout 180000
-                     :conn-timeout   3000})]
-    (loop [retry 1]
-      (if-let [res (try (client/post url opts)
-                        (catch Exception e
-                          (log/error "Failed")
-                          (when (zero? retry)
-                            {:body "" :length 0 :request-timnde 9999})))]
-        res
-        (recur (dec retry))))))
-
-(defn get-otp [symbol]
-  (log/trace "Requesting OTP")
-  (let [fullcode (redis (r/hget symbol "fullcode"))
-        url      (if (contains? ETFs symbol)
-                   "MKD/08/0801/08010700/mkd08010700_02"
-                   "MKD/04/0402/04020100/mkd04020100t3_01")
-        res      (post "http://marketdata.krx.co.kr/contents/COM/GenerateOTP.jspx"
-                       {:form-params {:name      "fileDown"
-                                      :filetype  "csv"
-                                      :isu_cd    fullcode
-                                      :url       url
-                                      :aceString "1"}})]
-    (log/trace "Received" (:length res) "bytes in" (:request-time res) "ms")
-    (:body res)))
-
-(defn fetch [symbol otp]
-  (let [res (post "http://file.krx.co.kr/download.jspx"
-                  {:form-params {:code otp}})]
-    (log/trace "Received" symbol (format "%,d" (:length res)) "bytes in" (:request-time res) "ms")
-    (:body res)))
-
-(defn parse [symbol data]
-  (let [idx (if (contains? ETFs symbol)
-              {:count 7 :time 0 :price 1 :volume 6}
-              {:count 6 :time 1 :price 2 :volume 4})]
-    (for [line (rest (str/split-lines data))
-          :let [row (-> line
-                        (str/replace #"(\d),(\d)" "$1$2")
-                        (str/replace #"\"" "")
-                        (str/split #","))]
-          :when (= (count row) (:count idx))]
-      (let [time   (get row (:time idx))
-            price  (get row (:price idx))
-            volume (get row (:volume idx))]
-        {:time time :price price :volume volume}))))
-
-(defn save [symbol rows]
-  (let [symbol   (str/replace symbol "stock:" "")
-        filepath (str basedir "/" symbol ".txt")]
-    (clojure.java.io/make-parents filepath)
-    (with-open [w (clojure.java.io/writer filepath)]
+(defn save [symbol filepath rows]
+  (when rows
+    (io/make-parents filepath)
+    (with-open [w (io/writer filepath)]
       (binding [*out* w]
         (println "# DDL")
         (println "CREATE DATABASE KRX")
@@ -92,24 +87,32 @@
                       timestamp (get-timestamp date time millisec)
                       price     (:price row)
                       volume    (:volume row)]]
-          (println (format lp-format
-                           symbol price volume timestamp)))))))
+          (println
+            (format "intraday,symbol=%s price=%s,volume=%s %s"
+                    (str/replace symbol "stock:" "")
+                    price
+                    volume
+                    timestamp)))))
+    (count rows)))
 
 (defn run [symbol]
-  (log/info "Downloading" (redis (r/hget symbol "name")) symbol)
-  (->> (get-otp symbol)
-       (fetch symbol)
-       (parse symbol)
-       (save symbol)))
+  (let [symbol-short (str/replace symbol "stock:" "")
+        symbol-name  (redis (r/hget symbol "name"))
+        filepath     (str basedir "/" symbol-short ".txt")]
+    (if (.exists (io/as-file filepath))
+      (log/info "File exists (skip)" symbol-name symbol-short)
+      (do
+        (log/info "Downloading" symbol-name symbol-short)
+        (->> (fetch symbol)
+             (parse symbol)
+             (save symbol filepath))))))
 
 (defn -main []
-  (log/info "Intraday Prices (from KRX)")
-  (doseq [symbol (redis (r/keys "stock:*"))
+  (doseq [symbol (shuffle (redis (r/keys "stock:*")))
           :let [stock (redis (r/hgetall* symbol))]]
     (run symbol)))
 
 (comment
-  (redis (r/hgetall* symbol))
   (def symbol "stock:015760")
   (def symbol "stock:005930")
   (def symbol "stock:112240")
@@ -118,11 +121,12 @@
   (def symbol "stock:229720")
   ; KODEX 레버리지 never succeed
   (def symbol "stock:122630")
-  (run symbol)
-  (def otp (get-otp symbol))
-  (def data (fetch symbol otp))
+  (redis (r/hgetall* symbol))
+  (def symbol "stock:222080")
+  (def data (fetch symbol))
   (def line (first (rest (str/split-lines data))))
   (def line (last (str/split-lines data)))
   (def rows (parse symbol data))
-  (save symbol rows)
+  (save symbol "~/Desktop/test.txt" rows)
+  (run symbol)
   )
