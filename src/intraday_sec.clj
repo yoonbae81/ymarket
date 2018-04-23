@@ -107,7 +107,8 @@
 
 (defn -main []
   (let [count   (atom 0)
-        pool    (Executors/newFixedThreadPool (+ 4 (.availableProcessors (Runtime/getRuntime))))
+        ;pool    (Executors/newFixedThreadPool (+ 4 (.availableProcessors (Runtime/getRuntime))))
+        pool    (Executors/newFixedThreadPool 20)
         symbols (for [symbol (shuffle (redis (r/keys "stock:*")))
                       :when (not (contains? ETFs symbol))]
                   symbol)
