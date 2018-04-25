@@ -19,7 +19,7 @@
 
 (defn -main [filepath]
   (def date (re-find #"\d{4}-\d{2}\-\d{2}", filepath))
-  (def line-protocol "intraday,symbol=%s price=%s,volume=%s %s")
+  (def line-protocol "intraday,symbol=%s price=%si,volume=%si %s")
 
   (println "# DDL")
   (println "CREATE DATABASE KRX")

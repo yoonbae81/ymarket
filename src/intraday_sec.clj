@@ -103,12 +103,10 @@
             acc
             (recur (+ acc (count rows)) (inc page))))))))
 
-
-
 (defn -main []
   (let [count   (atom 0)
         ;pool    (Executors/newFixedThreadPool (+ 4 (.availableProcessors (Runtime/getRuntime))))
-        pool    (Executors/newFixedThreadPool 30)
+        pool    (Executors/newFixedThreadPool 40)
         symbols (for [symbol (shuffle (redis (r/keys "stock:*")))
                       :when (not (contains? ETFs symbol))]
                   symbol)
@@ -120,5 +118,3 @@
     (.shutdown pool)
     (log/info (format "Total Count: %,d" @count))))
 
-(comment
-  (run "stock:003547"))
