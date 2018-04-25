@@ -75,7 +75,7 @@
                     price     (:price row)
                     volume    (:volume row)]]
         (println
-          (format "intraday,symbol=%s price=%s,volume=%s %s"
+          (format "intraday,symbol=%s price=%si,volume=%si %s"
                   (str/replace symbol "stock:" "")
                   price
                   volume
