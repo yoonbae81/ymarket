@@ -12,8 +12,7 @@
                  [clj-http "3.8.0"]
                  [com.taoensso/timbre "4.10.0"]
                  [com.taoensso/carmine "2.18.0"]
-                 [environ "1.1.0"]
-                 ]
+                 [environ "1.1.0"]]
   ;  :main ^:skip-aot core
   :resource-paths ["resources" "target/resources"]
   :profiles
