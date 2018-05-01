@@ -46,3 +46,6 @@
       (fetch)
       (save)))
 
+(comment
+  (fetch (get-otp)))
+

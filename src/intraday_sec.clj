@@ -118,3 +118,5 @@
     (.shutdown pool)
     (log/info (format "Total Count: %,d" @count))))
 
+(comment
+  (fetch "015760"))
