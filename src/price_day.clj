@@ -12,7 +12,12 @@
   ([symbol page]
    (log/debug (format "Fetching %s (page: %,d)" symbol page))
    (let [url  (format "http://finance.naver.com/item/sise_day.nhn?code=%s&page=%s" symbol page)
-         res  (http/get url {:as :byte-array})
+         res  (http/get url {:as :byte-array
+                             :socket-timeout 3000
+                             :conn-timeout 3000
+                             :retry-handler (fn [ex try-count http-context]
+                                                (log/error ex)
+                                                (if (> try-count 5) false true))})
          body (:body res)]
      (String. body "euc-kr"))))
 
@@ -20,7 +25,8 @@
   "parse html and return as follows:
    ((\"2018.04.30\" \"37450\" \"37500\" \"37750\" \"36650\" \"2820836\")) "
   [data]
-  (->> data
+  (when (str/includes? data "맨뒤")
+    (->> data
        str/split-lines
        (filter
          #(or (str/includes? % "<td align=\"center\"><span class=\"tah p10 gray03\">")
@@ -29,7 +35,7 @@
                   (re-find #"<span class=\".+\">(.+)</span>")
                   last))
        (filter some?)
-       (partition 6)))
+       (partition 6))))
 
 (defn- timestamp
   [date]
@@ -48,7 +54,12 @@
 (defn save [data]
   (let [res (http/post
               "http://127.0.0.1:8086/write?db=price&precision=s"
-              {:body (str/join "\n" data)})]
+              {:body (str/join "\n" data)
+               :socket-timeout 3000
+               :conn-timeout 3000
+               :retry-handler (fn [ex try-count http-context]
+                                  (log/error ex)
+                                  (if (> try-count 4) false true))})]
     (when (= (:status res)) 204)
     (log/debug (count data) "records saved"))
   (count data))
@@ -65,6 +76,7 @@
   (loop [acc 0 page 1]
     (let [days (run symbol page)]
       (if (not= 10 days)
+; (redis (r/sadd "day-done" (str "stock:" symbol)))
         (+ acc days)
         (recur (+ acc days) (inc page))))))
 
@@ -72,7 +84,7 @@
   (log/info "Creating a database on InfluxDB")
   (http/post "http://127.0.0.1:8086/query"
              {:form-params {:q "CREATE DATABASE price"}})
-  (log/info "Fetching day prices from NAVER")
+  (log/info "Fetching daily prices from NAVER")
   (let [days  (for [s (redis (r/keys "stock:*"))
                     :let [symbol (subs s 6)]
                     :when (= 6 (count symbol))]
