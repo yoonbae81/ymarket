@@ -77,8 +77,8 @@
     (let [days (run symbol page)]
       (if (not= 10 days)
         (let [total (+ acc days)]
-          (redis (r/sadd "price-done" symbol))
-          (log/info symbol "done:" total "records")
+          (redis (r/sadd "price-done" (str "stock:" symbol)))
+          (log/info (format "Fetched %s (%,d records)" symbol total))
           total)
         (recur (+ acc days) (inc page))))))
 
@@ -87,11 +87,9 @@
   (http/post "http://127.0.0.1:8086/query"
              {:form-params {:q "CREATE DATABASE price"}})
   (log/info "Fetching daily prices from NAVER")
-  (let [days  (for [s (shuffle (redis (r/keys "stock:*")))
-                    :let [symbol (subs s 6)]
-                    :when (and (= 6 (count symbol))
-                               (= 0 (redis (r/sismember "price-done" symbol))))]
-                (run-all symbol))
+  (let [days  (for [symbol (shuffle (redis (r/keys "stock:*")))
+                    :when (= 0 (redis (r/sismember "price-done" symbol)))]
+                (run-all (str/replace symbol "stock:" "")))
         total (reduce + days)]
     (log/info "Done:" total "records saved from" (count days) "symbols")))
 
