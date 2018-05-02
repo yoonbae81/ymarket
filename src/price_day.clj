@@ -1,4 +1,4 @@
-(ns interday
+(ns price-day 
   (:require [clj-http.client :as http]
             [clojure.string :as str]
             [environ.core :refer [env]]
@@ -42,12 +42,12 @@
   (for [row data
         :when (not-empty row)]
     (apply format
-           "interday,symbol=%s close=%si,open=%si,high=%si,low=%si,volume=%si %s"
+           "day,symbol=%s close=%si,open=%si,high=%si,low=%si,volume=%si %s"
            (concat (conj (rest row) symbol) [(timestamp (first row))]))))
 
 (defn save [data]
   (let [res (http/post
-              "http://127.0.0.1:8086/write?db=interday&precision=s"
+              "http://127.0.0.1:8086/write?db=price&precision=s"
               {:body (str/join "\n" data)})]
     (when (= (:status res)) 204)
     (log/debug (count data) "records saved"))
@@ -64,15 +64,15 @@
 (defn run-all [symbol]
   (loop [acc 0 page 1]
     (let [days (run symbol page)]
-      (if (> 10 days)
+      (if (not= 10 days)
         (+ acc days)
         (recur (+ acc days) (inc page))))))
 
 (defn -main []
-  (log/info "Creating interday database on InfluxDB")
+  (log/info "Creating a database on InfluxDB")
   (http/post "http://127.0.0.1:8086/query"
-             {:form-params {:q "CREATE DATABASE interday"}})
-  (log/info "Fetching interday prices from NAVER")
+             {:form-params {:q "CREATE DATABASE price"}})
+  (log/info "Fetching day prices from NAVER")
   (let [days  (for [s (redis (r/keys "stock:*"))
                     :let [symbol (subs s 6)]
                     :when (= 6 (count symbol))]
