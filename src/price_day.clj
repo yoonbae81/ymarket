@@ -75,12 +75,12 @@
 (defn run-all [symbol]
   (loop [acc 0 page 1]
     (let [days (run symbol page)]
-      (if (not= 10 days)
+      (if (= 10 days)
+        (recur (+ acc days) (inc page))
         (let [total (+ acc days)]
           (redis (r/sadd "price-done" (str "stock:" symbol)))
           (log/info (format "Fetched %s (%,d records)" symbol total))
-          total)
-        (recur (+ acc days) (inc page))))))
+          total)))))
 
 (defn -main []
   (log/info "Creating a database on InfluxDB")
@@ -91,7 +91,8 @@
                     :when (= 0 (redis (r/sismember "price-done" symbol)))]
                 (run-all (str/replace symbol "stock:" "")))
         total (reduce + days)]
-    (log/info "Done:" total "records saved from" (count days) "symbols")))
+    (log/info "Done:" total "records saved from" (count days) "symbols")
+    (redis (r/expire "price-done" (* 60 60 8)))))
 
 (comment
   (def page 1)

@@ -13,7 +13,7 @@
 (def basedir (str "../data.intraday/" date))
 
 (defn post [url options]
-  (loop [retry 2]
+  (loop [retry 3]
     (if-let [res (try (client/post url options)
                       (catch Exception e
                         (log/error "Response Timeout")))]
@@ -24,20 +24,20 @@
 
 (defn fetch [symbol]
   (let [fullcode (redis (r/hget symbol "fullcode"))
-        url      (if (contains? ETFs symbol)
-                   "MKD/08/0801/08010700/mkd08010700_02"
-                   "MKD/04/0402/04020100/mkd04020100t3_01")
-        params   {:name      "fileDown"
-                  :filetype  "csv"
-                  :isu_cd    fullcode
-                  :url       url
-                  :aceString "1"}
-        otp      (post "http://marketdata.krx.co.kr/contents/COM/GenerateOTP.jspx"
-                       {:form-params params})
-        res      (post "http://file.krx.co.kr/download.jspx"
-                       {:form-params    {:code otp}
-                        :socket-timeout 180000
-                        :conn-timeout   3000})]
+        url (if (contains? ETFs symbol)
+              "MKD/08/0801/08010700/mkd08010700_02"
+              "MKD/04/0402/04020100/mkd04020100t3_01")
+        params {:name      "fileDown"
+                :filetype  "csv"
+                :isu_cd    fullcode
+                :url       url
+                :aceString "1"}
+        otp (post "http://marketdata.krx.co.kr/contents/COM/GenerateOTP.jspx"
+                  {:form-params params})
+        res (post "http://file.krx.co.kr/download.jspx"
+                  {:form-params    {:code (:body otp)}
+                   :socket-timeout 180000
+                   :conn-timeout   3000})]
     (when res (log/debug "Received" (:length res) "bytes in" (:request-time res) "ms"))
     (:body res)))
 
@@ -52,53 +52,28 @@
                           (str/replace #"\"" "")
                           (str/split #","))]
             :when (= (count row) (:count idx))]
-        (let [time   (get row (:time idx))
-              price  (get row (:price idx))
+        (let [time (get row (:time idx))
+              price (get row (:price idx))
               volume (get row (:volume idx))]
           {:time time :price price :volume volume})))))
-
-(def counter (atom 1000))
-(defn next-value []
-  (when (zero? @counter) (reset! counter 1000))
-  (swap! counter dec))
-
-(defn get-timestamp [date time millisec]
-  ; (t.EpochMilli (java.time.Instant/parse "2018-04-18T12:34:56Z"))
-  (-> (str date "T" time "Z")
-      (java.time.Instant/parse)
-      (.toEpochMilli)
-      ; +09:00 to UTC
-      ; (- 32400000)
-      (+ millisec)))
 
 (defn save [symbol filepath rows]
   (when rows
     (io/make-parents filepath)
     (with-open [w (io/writer filepath)]
       (binding [*out* w]
-        (println "# DDL")
-        (println "CREATE DATABASE KRX")
-        (println "# DML")
-        (println "# CONTEXT-DATABASE: KRX")
-
         (doseq [row rows
-                :let [time      (:time row)
-                      millisec  (next-value)
-                      timestamp (get-timestamp date time millisec)
-                      price     (:price row)
-                      volume    (:volume row)]]
-          (println
-            (format "intraday,symbol=%s price=%s,volume=%s %s"
-                    (str/replace symbol "stock:" "")
-                    price
-                    volume
-                    timestamp)))))
+                :let [time (:time row)
+                      symbol-short (str/replace symbol "stock:" "")
+                      price (:price row)
+                      volume (:volume row)]]
+          (println time symbol-short price volume))))
     (count rows)))
 
 (defn run [symbol]
   (let [symbol-short (str/replace symbol "stock:" "")
-        symbol-name  (redis (r/hget symbol "name"))
-        filepath     (str basedir "/" symbol-short ".txt")]
+        symbol-name (redis (r/hget symbol "name"))
+        filepath (format "%s/%s.txt" basedir symbol-short)]
     (if (.exists (io/as-file filepath))
       (log/info "File exists (skip)" symbol-name symbol-short)
       (do
