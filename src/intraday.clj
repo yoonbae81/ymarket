@@ -13,14 +13,12 @@
 (def basedir (str "../data.intraday/" date))
 
 (defn post [url options]
-  (loop [retry 3]
-    (if-let [res (try (client/post url options)
-                      (catch Exception e
-                        (log/error "Response Timeout")))]
-      (if (= 200 (:status res))
-        res
-        (log/error (format "Response Error (Status:%s)" (:status res))))
-      (recur (dec retry)))))
+  (if-let [res (try (client/post url options)
+                    (catch Exception e
+                      (log/error "Response Timeout")))]
+    (if (= 200 (:status res))
+      res
+      (log/error (format "Response Error (Status:%s)" (:status res))))))
 
 (defn fetch [symbol]
   (let [fullcode (redis (r/hget symbol "fullcode"))
@@ -36,8 +34,8 @@
                   {:form-params params})
         res (post "http://file.krx.co.kr/download.jspx"
                   {:form-params    {:code (:body otp)}
-                   :socket-timeout 180000
-                   :conn-timeout   3000})]
+                   :socket-timeout 60000
+                   :conn-timeout   1000})]
     (when res (log/debug "Received" (:length res) "bytes in" (:request-time res) "ms"))
     (:body res)))
 
