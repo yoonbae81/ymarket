@@ -34,7 +34,7 @@
                   {:form-params params})
         res (post "http://file.krx.co.kr/download.jspx"
                   {:form-params    {:code (:body otp)}
-                   :socket-timeout 60000
+                   :socket-timeout 120000
                    :conn-timeout   1000})]
     (when res (log/debug "Received" (:length res) "bytes in" (:request-time res) "ms"))
     (:body res)))
