@@ -72,6 +72,6 @@
 
 (comment
   ; ETF 파워코스피100
-  (fetch "stock:140950")
+  (fetch "stock:233740")
   (run "stock:140950"))
 
