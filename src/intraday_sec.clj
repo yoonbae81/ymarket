@@ -8,7 +8,7 @@
             [taoensso.timbre :as log])
   (:import (java.util.concurrent Executors)))
 
-(defmacro redis [& body] `(r/wcar (env :redis-stock) ~@body))
+(defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri (env :redis-uri)}} ~@body))
 
 (def ETFs (set (redis (r/smembers "etf"))))
 (def date (.format (java.text.SimpleDateFormat. "yyyy-MM-dd") (new java.util.Date)))
