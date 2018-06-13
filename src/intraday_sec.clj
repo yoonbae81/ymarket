@@ -7,7 +7,7 @@
             [taoensso.carmine :as r]
             [taoensso.timbre :as log])
   (:import (java.util.concurrent Executors)))
-
+(defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri "redis://raspberrypi:6379"}} ~@body))
 (defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri (env :redis-uri)}} ~@body))
 
 (def ETFs (set (redis (r/smembers "etf"))))

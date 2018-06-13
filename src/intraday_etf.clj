@@ -6,8 +6,8 @@
             [clojure.data.json :as json]
             [taoensso.carmine :as r]
             [taoensso.timbre :as log]))
-
-(defmacro redis [& body] `(r/wcar (env :redis-stock) ~@body))
+(defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri "redis://raspberrypi:6379"}} ~@body))
+(defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri (env :redis-uri)}} ~@body))
 (def date (.format (java.text.SimpleDateFormat. "yyyy-MM-dd") (new java.util.Date)))
 
 (defn get-filepath [symbol]
