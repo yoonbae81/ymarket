@@ -5,19 +5,19 @@
             [clj-http.client :as client]
             [clojure.core.async :as async :refer [>!! >! <! <!!]]
             [taoensso.timbre :as log]
-            [taoensso.carmine :as r]
-            ))
+            [taoensso.carmine :as r]))
 
 (defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri (env :redis-uri)}} ~@body))
 
 (def DATE (.format
             (java.text.SimpleDateFormat. "yyyy-MM-dd")
             (new java.util.Date)))
-(def DIR (format "../data.minute/%s" DATE))
+(def DIR "../data.minute/%s")
 (def SYMBOLS
   (for [s (shuffle (redis (r/keys "stock:*")))
         :when (not (contains? (redis (r/smembers "etf")) s))]
     (str/replace s "stock:" "")))
+
 
 (defn generate-url
   [symbol page]
@@ -28,7 +28,6 @@
       "http://finance.naver.com/item/sise_time.nhn?code=%s&page=%s&thistime=%s"
       symbol page d)))
 (comment (def -url (generate-url "015760" 1)))
-(comment (def -url (generate-url "220110" 1)))
 
 (defn download [url]
   (let [options {:as             :byte-array
@@ -71,7 +70,7 @@
 
 (defn save
   [symbol rows]
-  (with-open [w (io/writer (format "%s/%s.txt" DIR symbol) :append true)]
+  (with-open [w (io/writer (format "%s/%s.txt" DIR DATE) :append true)]
     (binding [*out* w]
       (doseq [[hhmm price _ _ _ volume] rows]
         (println (format
