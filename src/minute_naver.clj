@@ -1,4 +1,4 @@
-(ns minutes-naver
+(ns minute-naver
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [environ.core :refer [env]]
