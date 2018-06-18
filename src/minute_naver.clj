@@ -14,8 +14,7 @@
             (new java.util.Date)))
 (def DIR (format "../data.minute/%s" DATE))
 (def SYMBOLS
-  (for [s (shuffle (redis (r/keys "stock:*")))
-        :when (not (contains? (redis (r/smembers "etf")) s))]
+  (for [s (shuffle (redis (r/keys "stock:*")))]
     (str/replace s "stock:" "")))
 
 (defn generate-url
@@ -133,13 +132,5 @@
   (def SYMBOLS ["015760" "047040"])
   (async/go (async/>! output {:symbol "015760" :rows 420}))
   (async/go (println (async/<! output)))
-
-
-  (.getEpochSecond (java.time.Instant/parse "2018-04-18T12:34:56Z"))
-  (-> (str date "T" time "Z")
-      (java.time.Instant/parse)
-      (.toEpochMilli)
-      ;      (- 32400000)                                          ; +09:00 to UTC
-      (+ millisec))
   )
 
