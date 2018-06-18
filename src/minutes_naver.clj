@@ -12,7 +12,7 @@
 (def DATE (.format
             (java.text.SimpleDateFormat. "yyyy-MM-dd")
             (new java.util.Date)))
-(def DIR "../data.minute/%s")
+(def DIR "../data.minute")
 (def SYMBOLS
   (for [s (shuffle (redis (r/keys "stock:*")))
         :when (not (contains? (redis (r/smembers "etf")) s))]
