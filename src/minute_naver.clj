@@ -72,12 +72,15 @@
   (with-open [w (io/writer (format "%s/%s.txt" DIR symbol) :append true)]
     (binding [*out* w]
       (doseq [[hhmm price _ _ _ volume] rows]
-        (println (format
-                   "minute,symbol=%s price=%si,volume=%si %s"
-                   symbol
-                   price
-                   volume
-                   (format "%sT%s:00Z" DATE hhmm))))))
+        (println
+          (format
+            "minute,symbol=%s price=%si,volume=%si %s"
+            symbol
+            price
+            volume
+            (-> (format "%sT%s:00Z" DATE hhmm)
+                (java.time.Instant/parse)
+                (.getEpochSecond)))))))
   (log/trace (str "Saved: " symbol " " (count rows))))
 (comment (save "015760" -rows))
 
@@ -130,4 +133,13 @@
   (def SYMBOLS ["015760" "047040"])
   (async/go (async/>! output {:symbol "015760" :rows 420}))
   (async/go (println (async/<! output)))
+
+
+  (.getEpochSecond (java.time.Instant/parse "2018-04-18T12:34:56Z"))
+  (-> (str date "T" time "Z")
+      (java.time.Instant/parse)
+      (.toEpochMilli)
+      ;      (- 32400000)                                          ; +09:00 to UTC
+      (+ millisec))
   )
+
