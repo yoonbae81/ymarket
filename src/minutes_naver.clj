@@ -12,12 +12,11 @@
 (def DATE (.format
             (java.text.SimpleDateFormat. "yyyy-MM-dd")
             (new java.util.Date)))
-(def DIR "../data.minute")
+(def DIR (format "../data.minute/%s" DATE))
 (def SYMBOLS
   (for [s (shuffle (redis (r/keys "stock:*")))
         :when (not (contains? (redis (r/smembers "etf")) s))]
     (str/replace s "stock:" "")))
-
 
 (defn generate-url
   [symbol page]
@@ -70,7 +69,7 @@
 
 (defn save
   [symbol rows]
-  (with-open [w (io/writer (format "%s/%s.txt" DIR DATE) :append true)]
+  (with-open [w (io/writer (format "%s/%s.txt" DIR symbol) :append true)]
     (binding [*out* w]
       (doseq [[hhmm price _ _ _ volume] rows]
         (println (format
