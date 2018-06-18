@@ -109,14 +109,6 @@
 (comment (process "015760"))
 (comment (process "20058AAA0"))
 
-(comment
-  (comment (def symbol (first symbols)))
-
-  (def SYMBOLS ["015760" "047040"])
-  (async/go (async/>! output {:symbol "015760" :rows 420}))
-  (async/go (println (async/<! output)))
-  )
-
 (defn -main []
   (io/make-parents (format "%s/file" DIR))
 
@@ -132,4 +124,12 @@
   (log/debug "Done")
   )
 
+(comment
+  (-main)
 
+  (comment (def symbol (first symbols)))
+
+  (def SYMBOLS ["015760" "047040"])
+  (async/go (async/>! output {:symbol "015760" :rows 420}))
+  (async/go (println (async/<! output)))
+  )
