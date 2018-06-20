@@ -25,7 +25,7 @@
     (format
       "http://finance.naver.com/item/sise_time.nhn?code=%s&page=%s&thistime=%s"
       symbol page d)))
-(comment (def -url (generate-url "015760" 1)))
+
 
 (defn download [url]
   (let [options {:as             :byte-array
@@ -112,14 +112,15 @@
 (defn -main []
   (io/make-parents (format "%s/file" DIR))
 
-  (time (<!!
-          (async/pipeline-blocking
-            (* 2 (.availableProcessors (Runtime/getRuntime)))
-            (doto (async/chan) (async/close!))
-            (map process)
-            (async/to-chan SYMBOLS)
-            true
-            (fn [err] (log/error (.getMessage err))))))
+  (time
+    (<!!
+      (async/pipeline-blocking
+        (* 2 (.availableProcessors (Runtime/getRuntime)))
+        (doto (async/chan) (async/close!))
+        (map process)
+        (async/to-chan SYMBOLS)
+        true
+        (fn [err] (log/error (.getMessage err))))))
 
   (log/debug "Done")
   )
