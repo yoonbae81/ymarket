@@ -5,25 +5,18 @@
             [clj-http.client :as client]
             [clojure.string :as str]))
 
-(def target "현재가격 (DAUM)")
+(defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri (env :redis-uri)}} ~@body))
 
 (defn fetch [url]
-  (log/info "Requesting Data:" target url)
+  (log/info "Requesting Data:" url)
   (let [res (client/get url)]
     (log/info "Received" (:length res) "bytes in" (:request-time res) "ms")
     (:body res)))
 
-(def -conn (env :redis-stock))
-(defmacro redis [& body] `(r/wcar -conn ~@body))
-
-(defn set-timestamp [key]
-  (redis (r/set key
-                (quot (System/currentTimeMillis) 1000))))
-
 (def regex (re-pattern "code:\"(.+)\",name :\"(.+)\",cost :\"(.+)\",updn"))
 
 (defn save [data]
-  (log/info "Saving to" -conn)
+  (log/info "Saving to Redis")
   (doseq [line (str/split-lines data)
           :let [matches (re-find regex line)]
           :when (str/includes? line "code")]
@@ -32,13 +25,15 @@
           price (read-string (str/replace (get matches 3) "," ""))]
       (log/debug code name price)
       (redis (r/hmset (str "stock:" code)
-                      "price" price))))
-  (set-timestamp "price-timestamp"))
+                      "name" name
+                      "price" price
+                      "updated" (quot (System/currentTimeMillis) 1000))))))
 
-(defn main []
-  (map #(-> %
-            (fetch)
-            (save))
-       ["http://finance.daum.net/xml/xmlallpanel.daum?stype=P&type=S"
-        "http://finance.daum.net/xml/xmlallpanel.daum?stype=Q&type=S"]))
+(defn -main []
+  (log/info "Fetching current prices from DAUM")
+  (doseq [url ["http://finance.daum.net/xml/xmlallpanel.daum?stype=P&type=S"
+               "http://finance.daum.net/xml/xmlallpanel.daum?stype=Q&type=S"]]
+    (-> url
+        (fetch)
+        (save))))
 
