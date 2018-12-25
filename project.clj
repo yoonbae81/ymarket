@@ -4,8 +4,8 @@
   :license {:name "The MIT License"
             :url  "http://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.10.0"]
-                 [org.clojure/core.async "0.4.474"]
-                 [org.clojure/tools.logging "0.4.0"]
+                 [org.clojure/core.async "0.4.490"]
+                 [org.clojure/tools.logging "0.4.1"]
                  [org.clojure/data.csv "0.1.4"]
                  [org.clojure/data.json "0.2.6"]
                  [org.clojure/tools.cli "0.3.6"]
