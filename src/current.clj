@@ -7,24 +7,26 @@
 
 (defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri (env :redis-uri)}} ~@body))
 
+(def regex (re-pattern "code:\"(.+)\",name :\"(.+)\",cost :\"(.+)\",updn"))
+
+
 (defn fetch [url]
   (log/info "Requesting Data:" url)
   (let [res (client/get url)]
     (log/info "Received" (:length res) "bytes in" (:request-time res) "ms")
     (:body res)))
 
-(def regex (re-pattern "code:\"(.+)\",name :\"(.+)\",cost :\"(.+)\",updn"))
 
 (defn save [data]
   (log/info "Saving to Redis")
   (doseq [line (str/split-lines data)
           :let [matches (re-find regex line)]
           :when (str/includes? line "code")]
-    (let [code  (get matches 1)
-          name  (get matches 2)
-          price (read-string (str/replace (get matches 3) "," ""))]
-      (log/debug code name price)
-      (redis (r/hmset (str "stock:" code)
+    (let [symbol (get matches 1)
+          name   (get matches 2)
+          price  (read-string (str/replace (get matches 3) "," ""))]
+      (log/debug symbol name price)
+      (redis (r/hmset (str "stock:" symbol)
                       "name" name
                       "price" price
                       "updated" (quot (System/currentTimeMillis) 1000))))))
@@ -36,4 +38,7 @@
     (-> url
         (fetch)
         (save))))
+
+(comment
+  (-main))
 
