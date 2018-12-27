@@ -25,6 +25,7 @@ pom.xml.asc
 /classes
 /target
 /lib
+/resources
 
 # Distribution / packaging
 .Python
