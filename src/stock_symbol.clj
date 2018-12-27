@@ -44,7 +44,7 @@
                       "updated" (quot (System/currentTimeMillis) 1000))))))
 
 (defn -main []
-  (log/info "종목코드 (from DAUM)")
+  (log/info "Symbol (from DAUM)")
   (doseq [url ["http://finance.daum.net/xml/xmlallpanel.daum?stype=P&type=S"
                "http://finance.daum.net/xml/xmlallpanel.daum?stype=Q&type=S"]]
     (doseq [{:keys [symbol name price]} (-> url

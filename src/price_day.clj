@@ -125,6 +125,8 @@
              :status)))
 
 (defn -main []
+  (log/info "Interday Prices (from NAVER)")
+
   (if (check-influxdb influxdb-uri)
     (log/info "InfluxDB is ready" influxdb-uri)
     (throw (Exception. (str "InfluxDB is not running " influxdb-uri))))

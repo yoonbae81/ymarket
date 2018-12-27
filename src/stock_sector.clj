@@ -46,11 +46,10 @@
 
 (defn -main
   []
-  (log/info "업종분류 (from NAVER)")
-  (log/info "Downloading sector list")
+  (log/info "Sector (from NAVER)")
   (doseq [{:keys [no name]} (get-sectors)]
     (doseq [{:keys [symbol sector]} (get-symbols no name)]
-      (log/debug sector-no sector-name symbol)
+      (log/debug symbol sector)
       (redis (r/sadd (str "sector:" sector) (str "stock:" symbol))
              (r/hmset (str "stock:" symbol) "sector" sector)))))
 

@@ -37,7 +37,7 @@
   (doseq [{:keys [symbol name]} (-> url
                                     download
                                     parse)]
-    (log/debug "Saving ETF" symbol name)
+    (log/debug symbol name)
     (redis (r/sadd "etf" (str "stock:" symbol))
            (r/hmset (str "stock:" symbol) "etf" 1))))
 

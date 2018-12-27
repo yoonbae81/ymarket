@@ -106,6 +106,7 @@
           {:symbol symbol :rows total-rows})))))
 
 (defn -main []
+  (log/info "Minute Prices (from NAVER)")
   (time
     (<!!
       (a/pipeline-blocking
