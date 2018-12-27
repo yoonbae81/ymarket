@@ -12,11 +12,6 @@
 
 (def influxdb-uri (or (env :influxdb-uri) "http://192.168.0.3:8086"))
 
-(defn check-influxdb []
-  (= 204 (-> (str influxdb-uri "/ping")
-             client/get
-             :status)))
-
 (defn get-symbols []
   (for [symbol (shuffle (redis (r/keys "stock:*")))]
     (s/replace symbol "stock:" "")))
@@ -47,8 +42,7 @@
          (re-find #"page=(\d+)")
          last
          read-string)
-    (catch NullPointerException e
-      1)))
+    (catch NullPointerException e 1)))
 
 (defn parse
   "parse html and return as follows:
@@ -70,17 +64,18 @@
 (defn convert
   [symbol rows]
   (for [[date close open high low volume] rows
-        :let [timestamp (-> (s/replace date "." "-")
-                            (str "T16:00:00Z")
-                            (java.time.Instant/parse)
-                            (.getEpochSecond))]]
+        :let [timestamp-hour (-> (s/replace date "." "-")
+                                 (str "T16:00:00Z")
+                                 (java.time.Instant/parse)
+                                 (.getEpochSecond)
+                                 (/ 3600))]]
     (format
       "day,symbol=%s close=%si,open=%si,high=%si,low=%si,volume=%si %s"
-      symbol close open high low volume timestamp)))
+      symbol close open high low volume timestamp-hour)))
 
 (defn save
   [rows]
-  (client/post (str influxdb-uri "/write?db=history&precision=s")
+  (client/post (str influxdb-uri "/write?db=history&precision=h")
                {:async? true
                 :body   (s/join "\n" rows)}
                (fn [res])
@@ -89,14 +84,15 @@
 
 (defn process-recent
   [symbol]
-  (log/info (format "Downloading %s" symbol))
-  (->> symbol
-       get-url
-       download
-       s/split-lines
-       parse
-       (convert symbol)
-       save))
+  (let [rows (->> symbol
+                  get-url
+                  download
+                  s/split-lines
+                  parse
+                  (convert symbol)
+                  save)]
+    (log/info (format "[%s] %,d rows saved" symbol rows))
+    {:symbol symbol :rows rows}))
 
 (defn process-all
   [symbol]
@@ -123,15 +119,20 @@
           (log/info (format "[%s] %,d rows saved" symbol total-rows))
           {:symbol symbol :rows total-rows})))))
 
+(defn check-influxdb [uri]
+  (= 204 (-> (str uri "/ping")
+             client/get
+             :status)))
+
 (defn -main []
-  (if (check-influxdb)
+  (if (check-influxdb influxdb-uri)
     (log/info "InfluxDB is ready" influxdb-uri)
     (throw (Exception. (str "InfluxDB is not running " influxdb-uri))))
 
   (time
     (<!!
       (a/pipeline-blocking
-        (* 2 (.availableProcessors (Runtime/getRuntime)))
+        (* 4 (.availableProcessors (Runtime/getRuntime)))
         (doto (a/chan) (a/close!))
         ;(map process-recent)
         (map process-all)
@@ -146,7 +147,7 @@
   (def -html (download -url))
   (parse-last-page -html)
   (def -lines (s/split-lines -html))
-  (def -rows (parse_new -lines))
+  (def -rows (parse -lines))
   (def -lps (convert -symbol -rows))
   (save -lps)
   (process-recent "015760")
