@@ -134,8 +134,8 @@
       (a/pipeline-blocking
         (* 4 (.availableProcessors (Runtime/getRuntime)))
         (doto (a/chan) (a/close!))
-        ;(map process-recent)
-        (map process-all)
+        (map process-recent)
+        ;(map process-all)
         (a/to-chan (get-symbols))
         true
         (fn [err] (log/error (.getMessage err)))))))

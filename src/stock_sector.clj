@@ -8,7 +8,6 @@
 (def redis-uri (or (env :redis-uri) "redis://localhost:6379"))
 (defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri redis-uri}} ~@body))
 
-
 (defn download
   [url]
   (let [options {:as             :byte-array
@@ -21,7 +20,8 @@
         :body
         (String. "euc-kr"))))
 
-(defn get-sectors []
+(defn get-sectors
+  []
   ; <a href="/sise/sise_group_detail.nhn?type=upjong&no=174">가정용품</a>
   (let [html  (download "http://finance.naver.com/sise/sise_group.nhn?type=upjong")
         regex (re-pattern "no=(.+)\">(.+)</a>")]
@@ -42,7 +42,6 @@
           :when (s/includes? line "main.nhn")]
       (let [matches (re-find regex line)
             symbol  (get matches 1)]
-        (log/debug "Section:" sector-no sector-name symbol)
         {:symbol symbol :sector sector-name}))))
 
 (defn -main
@@ -51,6 +50,7 @@
   (log/info "Downloading sector list")
   (doseq [{:keys [no name]} (get-sectors)]
     (doseq [{:keys [symbol sector]} (get-symbols no name)]
+      (log/debug sector-no sector-name symbol)
       (redis (r/sadd (str "sector:" sector) (str "stock:" symbol))
              (r/hmset (str "stock:" symbol) "sector" sector)))))
 
