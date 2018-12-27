@@ -1,106 +1,154 @@
 (ns price-day
-  (:require [clj-http.client :as http]
-            [clojure.string :as str]
+  (:require [clj-http.client :as client]
+            [clojure.string :as s]
+            [clojure.core.async :as a :refer [>!! >! <! <!!]]
             [environ.core :refer [env]]
             [taoensso.timbre :as log]
-            [taoensso.carmine :as r]))
+            [taoensso.carmine :as r]
+            [clojure.string :as str]))
 
-(defmacro redis [& body] `(r/wcar (env :redis-stock) ~@body))
+(def redis-uri (or (env :redis-uri) "redis://192.168.0.3:6379"))
+(defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri redis-uri}} ~@body))
 
-(defn fetch
-  ([symbol] (fetch symbol 1))
+(def influxdb-uri (or (env :influxdb-uri) "http://192.168.0.3:8086"))
+
+(defn check-influxdb []
+  (= 204 (-> (str influxdb-uri "/ping")
+             client/get
+             :status)))
+
+(defn get-symbols []
+  (for [symbol (shuffle (redis (r/keys "stock:*")))]
+    (s/replace symbol "stock:" "")))
+
+(defn get-url
+  ([symbol] (get-url symbol 1))
   ([symbol page]
-   (log/debug (format "Fetching %s (page: %,d)" symbol page))
-   (let [url  (format "http://finance.naver.com/item/sise_day.nhn?code=%s&page=%s" symbol page)
-         res  (http/get url {:as             :byte-array
-                             :socket-timeout 3000
-                             :conn-timeout   3000
-                             :retry-handler  (fn [ex try-count http-context]
-                                               (log/error ex)
-                                               (if (> try-count 5) false true))})
-         body (:body res)]
-     (String. body "euc-kr"))))
+   (format "http://finance.naver.com/item/sise_day.nhn?code=%s&page=%s" symbol page)))
+
+(defn download
+  ([url]
+   (let [options {:as             :byte-array
+                  :socket-timeout 3000
+                  :retry-handler  (fn [ex try-count http-context]
+                                    (log/error (.getMessage ex))
+                                    (if (> try-count 5) false true))}]
+     (-> url
+         (client/get options)
+         :body
+         (String. "euc-kr")))))
+
+(defn parse-last-page
+  [lines]
+  (try
+    (->> lines
+         (filter #(s/includes? % "맨뒤"))
+         first
+         (re-find #"page=(\d+)")
+         last
+         read-string)
+    (catch NullPointerException e
+      1)))
 
 (defn parse
   "parse html and return as follows:
    ((\"2018.04.30\" \"37450\" \"37500\" \"37750\" \"36650\" \"2820836\")) "
-  [data]
-  (when (str/includes? data "맨뒤")
-    (->> data
-         str/split-lines
-         (filter
-           #(or (str/includes? % "<td align=\"center\"><span class=\"tah p10 gray03\">")
-                (str/includes? % "<td class=\"num\"><span class=\"tah p11\">")))
-         (map #(->> (str/replace % "," "")
-                    (re-find #"<span class=\".+\">(.+)</span>")
-                    last))
-         (filter some?)
-         (partition 6))))
+  [lines]
+  (transduce
+    (comp
+      (filter
+        #(or (s/includes? % "<td align=\"center\"><span class=\"tah p10 gray03\">")
+             (s/includes? % "<td class=\"num\"><span class=\"tah p11\">")))
+      (map #(s/replace % "," ""))
+      (map #(re-find #"<span class=\".+\">(.+)</span>" %))
+      (map last)
+      (filter some?)
+      (partition-all 6))
+    conj
+    lines))
 
-(defn- timestamp
-  [date]
-  (-> (str/replace date "." "-")
-      (str "T00:00:00Z")
-      (java.time.Instant/parse)
-      (.getEpochSecond)))
+(defn convert
+  [symbol rows]
+  (for [[date close open high low volume] rows
+        :let [timestamp (-> (s/replace date "." "-")
+                            (str "T16:00:00Z")
+                            (java.time.Instant/parse)
+                            (.getEpochSecond))]]
+    (format
+      "day,symbol=%s close=%si,open=%si,high=%si,low=%si,volume=%si %s"
+      symbol close open high low volume timestamp)))
 
-(defn convert [symbol data]
-  (for [row data
-        :when (not-empty row)]
-    (apply format
-           "day,symbol=%s close=%si,open=%si,high=%si,low=%si,volume=%si %s"
-           (concat (conj (rest row) symbol) [(timestamp (first row))]))))
+(defn save
+  [rows]
+  (client/post (str influxdb-uri "/write?db=history&precision=s")
+               {:async? true
+                :body   (s/join "\n" rows)}
+               (fn [res])
+               (fn [err] (log/error (.getMessage err))))
+  (count rows))
 
-(defn save [data]
-  (let [res (http/post
-              "http://127.0.0.1:8086/write?db=price&precision=s"
-              {:body           (str/join "\n" data)
-               :socket-timeout 3000
-               :conn-timeout   3000
-               :retry-handler  (fn [ex try-count http-context]
-                                 (log/error ex)
-                                 (if (> try-count 4) false true))})]
-    (when (= (:status res) 204)
-      (log/trace (count data) "records saved")))
-  (count data))
+(defn process-recent
+  [symbol]
+  (log/info (format "Downloading %s" symbol))
+  (->> symbol
+       get-url
+       download
+       s/split-lines
+       parse
+       (convert symbol)
+       save))
 
-(defn run
-  ([symbol] (run symbol 1))
-  ([symbol page]
-   (->> (fetch symbol page)
-        parse
-        (convert symbol)
-        save)))
-
-(defn run-all [symbol]
-  (loop [acc 0 page 1]
-    (let [days (run symbol page)]
-      (if (= 10 days)
-        (recur (+ acc days) (inc page))
-        (let [total (+ acc days)]
-          (redis (r/sadd "price-done" (str "stock:" symbol)))
-          (log/info (format "Fetched %s (%,d records)" symbol total))
-          total)))))
+(defn process-all
+  [symbol]
+  (let [url       (get-url symbol 1)
+        html      (download url)
+        lines     (s/split-lines html)
+        last-page (parse-last-page lines)]
+    (loop [total-rows 0
+           page       1
+           rows       (parse lines)]
+      (if (<= page last-page)
+        (do
+          (when (seq rows)
+            (-> (convert symbol rows)
+                (save)))
+          (recur
+            (+ total-rows (count rows))
+            (inc page)
+            (-> (get-url symbol (inc page))
+                download
+                s/split-lines
+                parse)))
+        (do
+          (log/info (format "[%s] %,d rows saved" symbol total-rows))
+          {:symbol symbol :rows total-rows})))))
 
 (defn -main []
-  (log/info "Creating a database on InfluxDB")
-  (http/post "http://127.0.0.1:8086/query"
-             {:form-params {:q "CREATE DATABASE price"}})
-  (log/info "Fetching daily prices from NAVER")
-  (let [days  (for [symbol (shuffle (redis (r/keys "stock:*")))
-                    :when (= 0 (redis (r/sismember "price-done" symbol)))]
-                (run-all (str/replace symbol "stock:" "")))
-        total (reduce + days)]
-    (log/info "Done:" total "records saved from" (count days) "symbols")
-    (redis (r/expire "price-done" (* 60 60 8)))))
+  (if (check-influxdb)
+    (log/info "InfluxDB is ready" influxdb-uri)
+    (throw (Exception. (str "InfluxDB is not running " influxdb-uri))))
+
+  (time
+    (<!!
+      (a/pipeline-blocking
+        (* 2 (.availableProcessors (Runtime/getRuntime)))
+        (doto (a/chan) (a/close!))
+        ;(map process-recent)
+        (map process-all)
+        (a/to-chan (get-symbols))
+        true
+        (fn [err] (log/error (.getMessage err)))))))
 
 (comment
   (def page 1)
-  (def symbol "015761")
-  (def fetched (fetch "01576A0" 1))
-  (def parsed (parse fetched))
-  (def converted (convert symbol parsed))
-  (def res (save converted))
-  (run "015760")
-  (run-all "015760")
+  (def -symbol "015760")
+  (def -url (get-url -symbol))
+  (def -html (download -url))
+  (parse-last-page -html)
+  (def -lines (s/split-lines -html))
+  (def -rows (parse_new -lines))
+  (def -lps (convert -symbol -rows))
+  (save -lps)
+  (process-recent "015760")
+  (defn get-symbols [] ["015760" "000020"])
   (-main))
