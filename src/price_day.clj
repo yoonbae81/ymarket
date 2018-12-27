@@ -7,7 +7,7 @@
             [taoensso.carmine :as r]
             [clojure.string :as str]))
 
-(def redis-uri (or (env :redis-uri) "redis://192.168.0.3:6379"))
+(def redis-uri (or (env :redis-uri) "redis://localhost:6379"))
 (defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri redis-uri}} ~@body))
 
 (def influxdb-uri (or (env :influxdb-uri) "http://192.168.0.3:8086"))

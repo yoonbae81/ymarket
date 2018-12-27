@@ -10,7 +10,7 @@
 (def date (java.time.LocalDate/now))
 (def basedir "../data.minute")
 
-(def redis-uri (or (env :redis-uri) "redis://192.168.0.3:6379"))
+(def redis-uri (or (env :redis-uri) "redis://localhost:6379"))
 (defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri redis-uri}} ~@body))
 
 (defn get-symbols []
@@ -23,7 +23,8 @@
     (format "http://finance.naver.com/item/sise_time.nhn?code=%s&page=%s&thistime=%s180000"
             symbol page d)))
 
-(defn download [url]
+(defn download
+  [url]
   (let [options {:as             :byte-array
                  :socket-timeout 3000
                  :retry-handler  (fn [ex try-count http-context]

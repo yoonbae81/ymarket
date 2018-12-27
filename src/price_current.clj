@@ -1,11 +1,12 @@
-(ns current
+(ns price-current
   (:require [environ.core :refer [env]]
             [taoensso.carmine :as r]
             [taoensso.timbre :as log]
             [clj-http.client :as client]
             [clojure.string :as str]))
 
-(defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri (env :redis-uri)}} ~@body))
+(def redis-uri (or (env :redis-uri) "redis://localhost:6379"))
+(defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri redis-uri}} ~@body))
 
 (def regex (re-pattern "code:\"(.+)\",name :\"(.+)\",cost :\"(.+)\",updn"))
 
@@ -32,7 +33,7 @@
                       "updated" (quot (System/currentTimeMillis) 1000))))))
 
 (defn -main []
-  (log/info "Fetching current prices from DAUM")
+  (log/info "현재가 (from DAUM)")
   (doseq [url ["http://finance.daum.net/xml/xmlallpanel.daum?stype=P&type=S"
                "http://finance.daum.net/xml/xmlallpanel.daum?stype=Q&type=S"]]
     (-> url
