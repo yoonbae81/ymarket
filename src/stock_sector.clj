@@ -30,7 +30,7 @@
       (let [matches (re-find regex line)
             no      (read-string (get matches 1))
             name    (get matches 2)]
-        (log/debug "Section:" no name)
+        (log/debug no name)
         {:no no :name name}))))
 
 (defn get-symbols

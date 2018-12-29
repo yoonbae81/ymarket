@@ -8,7 +8,7 @@
             [taoensso.carmine :as r]))
 
 (def date (java.time.LocalDate/now))
-(def basedir "../data.minute")
+(def basedir "data")
 
 (def redis-uri (or (env :redis-uri) "redis://localhost:6379"))
 (defmacro redis [& body] `(r/wcar {:pool {} :spec {:uri redis-uri}} ~@body))
@@ -75,10 +75,10 @@
                                     (java.time.Instant/parse)
                                     (.getEpochSecond))]]
           (println (format "%s %s %s %s"
-                           timestamp
                            symbol
                            price
-                           volume))))))
+                           volume
+                           timestamp))))))
   (log/trace (str "Saved: " symbol " " (count rows))))
 
 (defn process
