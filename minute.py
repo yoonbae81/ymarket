@@ -52,7 +52,7 @@ class Spider(scrapy.Spider):
             yield {
                 'symbol': symbol,
                 'price': e[1],
-                'volume': e[5],
+                'volume': e[6],
                 'timestamp': int(datetime.strptime('{} {}'.format(DATE, e[0]), '%Y%m%d %H:%M').timestamp())
             }
 
