@@ -1,6 +1,9 @@
+#!/usr/bin/python3
+
 import re
 import scrapy
 from scrapy.exporters import CsvItemExporter
+from scrapy.crawler import CrawlerProcess
 
 RE = re.compile("code:\"(.+)\",name :\"(.+)\",cost :\"(.+)\",updn")
 
@@ -17,7 +20,7 @@ class Pipeline(object):
             item['price'] = item['price'].replace(",", "")
         return item
 
-class SymbolSpider(scrapy.Spider):
+class Spider(scrapy.Spider):
     name = "symbol"
 
     custom_settings = {
@@ -40,6 +43,21 @@ class SymbolSpider(scrapy.Spider):
                 'name': line.group(2),
                 'price': line.group(3).replace(",", "")
             }
+
+if __name__ == '__main__':
+    process = CrawlerProcess(settings={
+        'FEED_URI': 'stdout:',
+        'FEED_FORMAT': 'csv',
+        'LOG_ENABLED': False
+    })
+
+    process.crawl(Spider)
+    process.start()
+
+    # equivalent above
+    # scrapy runspider symbol.py --nolog -o - -t csv
+
+
 
 
 ''' debug code
