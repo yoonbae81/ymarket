@@ -1,5 +1,15 @@
 #!/usr/bin/python3
 
+# simply run
+# $ symbol.py
+#
+# run with scrapy shell that supports various format
+# $ scrapy runspider symbol.py --nolog -o - -t csv
+# $ scrapy runspider symbol.py --nolog -o - -t jsonlines
+#
+# get symbols only,
+# $ symbol.py | tail -n +2 | awk 'BEGIN {FS=","}; {print $-1}'
+
 import re
 import scrapy
 from scrapy.exporters import CsvItemExporter
@@ -24,7 +34,6 @@ class Spider(scrapy.Spider):
     name = "symbol"
 
     custom_settings = {
-        # 'FEED_URI': 'stdout:',
         # 'FEED_EXPORTERS': { 'csv': 'symbol.RawExporter' },
         # 'ITEM_PIPELINES': { 'symbol.Pipeline': 0},
         'FEED_EXPORT_ENCODING': 'utf-8',
@@ -37,11 +46,11 @@ class Spider(scrapy.Spider):
     ]
 
     def parse(this, response):
-        for line in re.finditer(RE, response.text):
+        for m in re.finditer(RE, response.text):
             yield {
-                'symbol': line.group(1),
-                'name': line.group(2),
-                'price': line.group(3).replace(",", "")
+                'symbol': m.group(1),
+                'name': m.group(2),
+                'price': m.group(3).replace(",", "")
             }
 
 if __name__ == '__main__':
@@ -54,16 +63,8 @@ if __name__ == '__main__':
     process.crawl(Spider)
     process.start()
 
-    # equivalent above
-    # scrapy runspider symbol.py --nolog -o - -t csv
 
-
-
-
-''' debug code
-import requests
-response = requests.get("http://finance.daum.net/xml/xmlallpanel.daum?stype=P&type=S")
-
-for line in re.finditer(RE, response.text):
-    print({'symbol': line.group(1), 'name': line.group(2)})
+''' codelet for scrapy shell
+url = 'http://finance.daum.net/xml/xmlallpanel.daum?stype=P&type=S'
+fetch(url)
 '''
