@@ -21,9 +21,10 @@ class Spider(scrapy.Spider):
 
     custom_settings = {
         'FEED_EXPORT_ENCODING': 'utf-8',
-        'CONCURRENT_REQUESTS': 20,
+        'CONCURRENT_REQUESTS': 10,
         'RETRY_ENABLED': True,
-        'RETRY_TIMES': 5
+        'RETRY_TIMES': 5,
+	'TELNETCONSOLE_ENABLED': False
     }
 
     def __init__(self, symbol):
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     process = CrawlerProcess(settings={
         'FEED_URI': 'stdout:' if args.output is None else args.output,
         'FEED_FORMAT': 'csv',
-        'LOG_ENABLED': False
+        'LOG_ENABLED': True 
     })
 
     if args.symbol:
