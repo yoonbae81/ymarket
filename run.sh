@@ -1,20 +1,26 @@
 #!/bin/bash
 
-#DATE=$(date '+%Y-%m-%d')
-DATE="2019-08-16"
+DATE=$(date '+%Y-%m-%d')
+#DATE="2019-08-16"
 TEMP="/tmp/market"
 DIR="$HOME/yQuant.data"
 
-echo "Fetching symbols list"
+rm -rf $TEMP
+mkdir $TEMP
+
 SYMBOLS="$TEMP/symbols"
 ~/market/symbol.py | tail -n +2 | awk 'BEGIN {FS=","}; {print $1}' > $SYMBOLS
+COUNT=`cat $SYMBOLS | wc -l`
+echo "Symbols: $COUNT"
 
-# output="$HOME/yQuant.data/day/$date.txt"
-#
-# echo "Fetching daily prices..."
-# rm -rf $temp
-# ~/market/day_all.py -o $temp
-#
-# cat $temp | grep $date | awk 'BEGIN {FS=","}; {OFS="\t"}; {print $2,$3,$4,$5,$6,$7}' | sort > $output
-# lines=`cat $output | wc -l`
-# echo "$lines prices wrote to $output"
+OUTPUT="$DIR/day/$DATE.txt"
+~/market/day.py -l $SYMBOLS -o $TEMP/day
+cat $TEMP/day | grep $DATE | awk 'BEGIN {FS=","}; {OFS="\t"}; {print $2,$3,$4,$5,$6,$7}' | sort > $OUTPUT
+COUNT=`cat $OUTPUT | wc -l`
+echo "Day: $COUNT"
+
+OUTPUT="$DIR/minute/$DATE.txt"
+~/market/minute.py -l $SYMBOLS -o $TEMP/minute
+cat $TEMP/minute | tail -n +2 | awk 'BEGIN {FS=","}; {OFS="\t"}; {print $1,$2,$3,$4}' | sort -n -s -k 4 > $OUTPUT
+COUNT=`cat $OUTPUT | wc -l`
+echo "Minute: $COUNT"
