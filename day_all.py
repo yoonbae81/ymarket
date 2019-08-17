@@ -72,7 +72,7 @@ if __name__ == '__main__':
     process = CrawlerProcess(settings={
         'FEED_URI': 'stdout:' if args.output is None else args.output,
         'FEED_FORMAT': 'csv',
-        'LOG_ENABLED': True
+        'LOG_ENABLED': False
     })
 
     process.crawl(Spider)
