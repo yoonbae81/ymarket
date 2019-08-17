@@ -1,9 +1,13 @@
 #!/usr/bin/python3
 
+# simply run
+# $ ./day.py 015760
+
 # $ scrapy runspider --nolog -t csv -o - -a symbol=015760 day.py
 
 import argparse
 import scrapy
+import os.path
 from scrapy.exporters import CsvItemExporter
 from scrapy.crawler import CrawlerProcess
 
@@ -48,10 +52,11 @@ class Spider(scrapy.Spider):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('symbol', help='symbol to fetch')
+    parser.add_argument('--dir', help='output directory', default='./')
     args = parser.parse_args()
 
     process = CrawlerProcess(settings={
-        'FEED_URI': 'stdout:',
+        'FEED_URI': 'stdout:' if args.dir is None else os.path.join(args.dir, args.symbol + '.csv'),
         'FEED_FORMAT': 'csv',
         'LOG_ENABLED': False
     })
