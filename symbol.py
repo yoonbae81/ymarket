@@ -5,9 +5,9 @@
 #
 # run with scrapy shell that supports various format
 # $ scrapy runspider symbol.py --nolog -o - -t csv
-# $ scrapy runspider symbol.py --nolog -o - -t jsonlines
+# $ scrapy runspider symbol.py --nolog -o - -t json
 #
-# get symbols only,
+# to get symbols only,
 # $ ./symbol.py | tail -n +2 | awk 'BEGIN {FS=","}; {print $1}'
 
 import re
