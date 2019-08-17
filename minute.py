@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
-# simply run
-# $ ./minute.py
+# $ ./minute.py -s 015760
+# $ ./minute.py -l symbols.txt -o output.txt
 
 # run with scrapy shell that supports various format
 # $ scrapy runspider --nolog -t csv -o -  minute.py
-# $ scrapy runspider --nolog -t json -o -  minute.py
+# $ scrapy runspider --nolog -t -o -  minute.py
 
 import re
 import argparse
@@ -16,7 +16,6 @@ from scrapy.crawler import CrawlerProcess
 
 # DATE = datetime.now().strftime("%Y%m%d")
 DATE = '20190816'
-RE = re.compile("code:\"(.+)\",name :\"(.+)\",cost :\"(.+)\",updn")
 URL = 'https://finance.naver.com/item/sise_time.nhn?thistime={}2359&code={}&page={}'
 
 def partition(l, n):
@@ -34,32 +33,16 @@ class Spider(scrapy.Spider):
         'TELNETCONSOLE_ENABLED': False
     }
 
-    start_urls = [
-       'http://finance.daum.net/xml/xmlallpanel.daum?stype=P&type=S',
-       'http://finance.daum.net/xml/xmlallpanel.daum?stype=Q&type=S'
-    ]
+    def __init__(self, symbols):
+         self.symbols = symbols
 
-    # def __init__(self, symbol):
-    #     self.symbol = symbol
-    #     self.page = 1
-    #
-    # def start_requests(self):
-    #     url = URL.format(DATE, self.symbol, self.page)
-    #     yield scrapy.Request(url,
-    #                          callback=self.parse,
-    #                          meta={'symbol': self.symbol,
-    #                                'page': self.page})
+    def start_requests(self):
+        for symbol in self.symbols:
+            yield scrapy.Request(URL.format(DATE, symbol, 1),
+                                 callback=self.parse,
+                                 meta={'symbol': symbol, 'page': 1})
 
     def parse(self, response):
-        for m in re.finditer(RE, response.text):
-            symbol = m.group(1)
-            page = 1
-            url = URL.format(DATE, symbol, page)
-            yield scrapy.Request(url,
-                                 callback=self.parse2,
-                                 meta={'symbol': symbol, 'page': page})
-
-    def parse2(self, response):
         symbol = response.meta['symbol']
         page = int(response.meta['page'])
 
@@ -77,30 +60,28 @@ class Spider(scrapy.Spider):
         if (page < last_page):
             url = URL.format(DATE, symbol, page+1)
             yield scrapy.Request(url,
-                                 callback=self.parse2,
+                                 callback=self.parse,
                                  meta={'symbol': symbol, 'page': page+1})
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument('symbol', help='directory to save output')
+    parser.add_argument('-s', '--symbol', help='a symbol to fetch')
+    parser.add_argument('-l', '--list', help='a file of symbols list')
     parser.add_argument('-o', '--output', help='directory to save output')
     args = parser.parse_args()
 
     process = CrawlerProcess(settings={
-        # 'FEED_URI': 'stdout:',
         'FEED_URI': 'stdout:' if args.output is None else args.output,
         'FEED_FORMAT': 'csv',
         'LOG_ENABLED': False
     })
 
-    # process.crawl(Spider, args.symbol)
-    process.crawl(Spider)
+    if args.symbol:
+        symbols = [args.symbol]
+    else:
+        with open(args.list) as f:
+            symbols = f.read().splitlines()
+
+    process.crawl(Spider, symbols)
     process.start()
-
-
-''' codelet for scrapy shell
-symbol = '015760'
-url = 'https://finance.naver.com/item/sise_day.nhn?code={}'.format(symbol)
-fetch(url)
-'''

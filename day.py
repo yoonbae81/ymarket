@@ -1,17 +1,17 @@
 #!/usr/bin/python3
 
 # simply run
-# $ ./day.py
+# $ ./day.py -s 015760
+# $ ./day.py -l symbols.txt -o output.txt
 
 # $ scrapy runspider --nolog -t csv -o - -a symbol=015760 day.py
 
-import re
 import argparse
 import scrapy
 from scrapy.exporters import CsvItemExporter
 from scrapy.crawler import CrawlerProcess
 
-RE = re.compile("code:\"(.+)\",name :\"(.+)\",cost :\"(.+)\",updn")
+URL = 'https://finance.naver.com/item/sise_day.nhn?code={}'
 
 def partition(l, n):
     for i in range(0, len(l), n):
@@ -28,28 +28,16 @@ class Spider(scrapy.Spider):
         'TELNETCONSOLE_ENABLED': False
     }
 
-    start_urls = [
-       'http://finance.daum.net/xml/xmlallpanel.daum?stype=P&type=S',
-       'http://finance.daum.net/xml/xmlallpanel.daum?stype=Q&type=S'
-    ]
+    def __init__(self, symbols):
+         self.symbols = symbols
 
-    # def __init__(self, symbol):
-    #     self.symbol = symbol
-
-    # def start_requests(self):
-    #     url = URL.format(self.symbol)
-    #     yield scrapy.Request(url,
-    #                          callback=self.parse,
-    #                          meta={'symbol': self.symbol})
+    def start_requests(self):
+        for symbol in self.symbols:
+            yield scrapy.Request(URL.format(symbol),
+                                 callback=self.parse,
+                                 meta={'symbol': symbol})
 
     def parse(self, response):
-        for m in re.finditer(RE, response.text):
-            symbol = m.group(1)
-            url = 'https://finance.naver.com/item/sise_day.nhn?code={}'.format(symbol)
-
-            yield scrapy.Request(url, callback=self.parse2, meta={'symbol': symbol})
-
-    def parse2(self, response):
         r = response.css('span.tah::text').getall()
         m = map(lambda s: s.replace(',', '').replace('\t', '').replace('\n', '').replace('.', '-'), r)
         for e in partition(list(m), 7):
@@ -65,19 +53,24 @@ class Spider(scrapy.Spider):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument('symbol', help='directory to save output')
+    parser.add_argument('-s', '--symbol', help='a symbol to fetch')
+    parser.add_argument('-l', '--list', help='a file of symbols list')
     parser.add_argument('-o', '--output', help='directory to save output')
     args = parser.parse_args()
 
     process = CrawlerProcess(settings={
-        # 'FEED_URI': 'stdout:',
         'FEED_URI': 'stdout:' if args.output is None else args.output,
         'FEED_FORMAT': 'csv',
         'LOG_ENABLED': False
     })
 
-    # process.crawl(Spider, args.symbol)
-    process.crawl(Spider)
+    if args.symbol:
+        symbols = [args.symbol]
+    else:
+        with open(args.list) as f:
+            symbols = f.read().splitlines()
+
+    process.crawl(Spider, symbols)
     process.start()
 
 
