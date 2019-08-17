@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 
 # simply run
-# $ symbol.py
+# $ ./symbol.py
 #
 # run with scrapy shell that supports various format
 # $ scrapy runspider symbol.py --nolog -o - -t csv
 # $ scrapy runspider symbol.py --nolog -o - -t jsonlines
 #
 # get symbols only,
-# $ symbol.py | tail -n +2 | awk 'BEGIN {FS=","}; {print $-1}'
+# $ ./symbol.py | tail -n +2 | awk 'BEGIN {FS=","}; {print $1}'
 
 import re
 import scrapy
