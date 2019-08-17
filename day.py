@@ -7,7 +7,6 @@
 
 import argparse
 import scrapy
-import os.path
 from scrapy.exporters import CsvItemExporter
 from scrapy.crawler import CrawlerProcess
 
@@ -22,6 +21,7 @@ class Spider(scrapy.Spider):
 
     custom_settings = {
         'FEED_EXPORT_ENCODING': 'utf-8',
+        'CONCURRENT_REQUESTS': 20,
         'RETRY_ENABLED': True,
         'RETRY_TIMES': 5
     }
@@ -51,17 +51,23 @@ class Spider(scrapy.Spider):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('symbol', help='symbol to fetch')
-    parser.add_argument('--dir', help='output directory', default='./')
+    parser.add_argument('--symbol', help='a symbol to fetch')
+    parser.add_argument('-s', '--source', help='list of symbols')
+    parser.add_argument('-o', '--output', help='output file')
     args = parser.parse_args()
 
     process = CrawlerProcess(settings={
-        'FEED_URI': 'stdout:' if args.dir is None else os.path.join(args.dir, args.symbol + '.csv'),
+        'FEED_URI': 'stdout:' if args.output is None else args.output,
         'FEED_FORMAT': 'csv',
         'LOG_ENABLED': False
     })
 
-    process.crawl(Spider, args.symbol)
+    if args.symbol:
+        process.crawl(Spider, args.symbol)
+    else:
+        with open(args.source) as f:
+            [process.crawl(Spider, symbol) for symbol in f.read().splitlines()]
+
     process.start()
 
 
