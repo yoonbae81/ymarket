@@ -122,8 +122,6 @@ ENV/
 # mypy
 .mypy_cache/
 
-
-# old python codes will be converted to clojure
-/old
+/data
 
 .cpcache
