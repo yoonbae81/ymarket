@@ -14,8 +14,8 @@ from datetime import datetime
 from scrapy.exporters import CsvItemExporter
 from scrapy.crawler import CrawlerProcess
 
-# DATE = datetime.now().strftime("%Y%m%d")
-DATE = '20190816'
+DATE = datetime.now().strftime("%Y%m%d")
+#DATE = '20190816'
 URL = 'https://finance.naver.com/item/sise_time.nhn?thistime={}2359&code={}&page={}'
 
 def partition(l, n):
