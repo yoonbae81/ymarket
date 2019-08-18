@@ -53,7 +53,8 @@ class Spider(scrapy.Spider):
                 'symbol': symbol,
                 'price': e[1],
                 'volume': e[6],
-                'timestamp': int(datetime.strptime('{} {}'.format(DATE, e[0]), '%Y%m%d %H:%M').timestamp())
+                'time': e[0]
+#                'timestamp': int(datetime.strptime('{} {}'.format(DATE, e[0]), '%Y%m%d %H:%M').timestamp())
             }
 
         last_page = int(re.search('page=(\d.)', response.css('td.pgRR').css('a').get()).group(1))
