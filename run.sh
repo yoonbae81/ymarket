@@ -3,7 +3,7 @@
 DATE=$(date '+%Y-%m-%d')
 #DATE="2019-08-16"
 TEMP="/tmp/market"
-DIR="$HOME/yQuant.data"
+DIR="$HOME/market/data"
 
 rm -rf $TEMP
 mkdir $TEMP
