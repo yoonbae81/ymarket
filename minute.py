@@ -35,13 +35,15 @@ def session():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('symbol', help='symbol to fetch prices')
+    parser.add_argument('date')
+    parser.add_argument('symbol')
     args = parser.parse_args()
 
     s = session()
     p = {'page': 1,
          'code': args.symbol,
-         'thistime': datetime.now().strftime('%Y%m%d') + '2359'}
+         'thistime': args.date.replace('-', '') + '2359'}
+         # 'thistime': datetime.now().strftime('%Y%m%d') + '2359'}
     URL = 'https://finance.naver.com/item/sise_time.nhn'
 
     r = s.get(URL, params=p)
