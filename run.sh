@@ -1,7 +1,12 @@
 #!/bin/bash
 
-DATE=$(date '+%Y-%m-%d')
-#DATE="2019-08-16"
+if [ -z "$1" ]
+then
+	echo "No date given. e.g. YYYY-MM-DD"
+	exit 1
+fi
+
+DATE=$1
 BASE=$HOME/market
 
 ######################
@@ -25,7 +30,7 @@ echo "Symbols: `cat $SYMBOLS | wc -l`"
 # Minute
 ######################
 TEMP=$(mktemp)
-cat $SYMBOLS | parallel --jobs 20 --group $BASE/minute.py {} > $TEMP
+cat $SYMBOLS | parallel --jobs 20 --group $BASE/minute.py $DATE {} > $TEMP
 DIR=$BASE/data.minute
 mkdir -p $DIR
 sort -k4 $TEMP > $DIR/$DATE.txt
