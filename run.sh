@@ -7,31 +7,29 @@ then
 fi
 
 DATE=$1
-BASE=$HOME/market
+DIR=$HOME/market
 
 ######################
 # Symbols
 ######################
-SYMBOLS=$(mktemp)
-$BASE/symbol.py | tail -n +2 | awk 'BEGIN {FS=","}; {print $1}' > $SYMBOLS
-echo "Symbols: `cat $SYMBOLS | wc -l`"
+SYMBOLS=$(mktemp /tmp/symbols.XXXX)
+$DIR/symbol.py > $SYMBOLS
+wc -l $SYMBOLS | ~/bin/telegram > /dev/null
 
 ######################
 # Day
 ######################
-# TEMP=$(mktemp)
-# $BASE/day.py -l $SYMBOLS -o $TEMP
-# DIR=$BASE/data.day
-# mkdir -p $DIR
-# cat $TEMP | grep $DATE | awk 'BEGIN {FS=","}; {OFS="\t"}; {print $2,$3,$4,$5,$6,$7}' | sort > $DIR/$DATE.txt
-# echo `wc -l $DIR/$DATE.txt`
+TEMP=$(mktemp /tmp/day.XXXX)
+cat $SYMBOLS | parallel --jobs 30 -N100 --pipe $DIR/day.py -d $DATE -f - > $TEMP
+mkdir -p $DIR/data.day
+sort $TEMP > $DIR/data.day/$DATE.txt
+wc -l $DIR/data.day/$DATE.txt | ~/bin/telegram > /dev/null
 
 ######################
 # Minute
 ######################
-TEMP=$(mktemp)
-cat $SYMBOLS | parallel --jobs 20 --group $BASE/minute.py $DATE {} > $TEMP
-DIR=$BASE/data.minute
-mkdir -p $DIR
-sort -k4 $TEMP > $DIR/$DATE.txt
-echo `wc -l $DIR/$DATE.txt`
+TEMP=$(mktemp /tmp/minute.XXXX)
+cat $SYMBOLS | parallel --jobs 30 -N100 --pipe $DIR/minute.py -d $DATE -f - > $TEMP
+mkdir -p $DIR/data.minute
+sort -k4 $TEMP > $DIR/data.minute/$DATE.txt
+wc -l $DIR/data.minute/$DATE.txt | ~/bin/telegram > /dev/null
