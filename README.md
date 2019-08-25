@@ -1,14 +1,14 @@
-## 개요
+# 개요
 
 각종 주가 데이터를 가져오는 스크립트입니다.
 
 
-### price.py
+## price.py
 
 다음에서 전 종목 시세를 긁어오는 스크립트입니다.
 https://finance.daum.net/domestic/all_quotes
 
-#### 사용예시
+### 사용예시
 ```
 $ ./price.py
 {'name': 'AJ네트웍스', 'symbol': '095570', 'price': 4720.0}
@@ -16,18 +16,18 @@ $ ./price.py
 {'name': 'AK홀딩스', 'symbol': '006840', 'price': 35150.0}
 ```
 
-### day.py
+## day.py
 
 네이버에서 일자별 시세를 가져오는 스크립트입니다.
 
 
-#### 사용예시
+### 사용예시
 ```
 $ ./day.py -s 005930
 005930  43800   44200   43650   43950   4637815
 ```
 
-#### 활용예시
+### 활용예시
 
 [GNU Parallel](https://www.gnu.org/software/parallel/)을 이용해 프로세스를 10개 띄어 병렬로 데이터를 가져올 수 있습니다.
 
@@ -39,7 +39,7 @@ $ cat /tmp/symbols | parallel --jobs 10 -N300 --pipe ./day.py -s - > `date +%Y-%
 
 네이버에서 분단위 시세를 가져오는 스크립트입니다.
 
-#### 사용예시
+### 사용예시
 ```
 $ ./minute.py -s 005930
 005930  44300   406234  09:00
@@ -60,7 +60,7 @@ $ ./minute.py -s 005930
 005930  44050   17476   09:15
 ```
 
-#### 활용예시
+### 활용예시
 
 [GNU Parallel](https://www.gnu.org/software/parallel/)을 이용해 프로세스를 10개 띄어 병렬로 데이터를 가져올 수 있습니다.
 
