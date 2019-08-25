@@ -18,16 +18,6 @@ pom.xml.asc
 *.jar
 *.class
 
-/.lein-*
-/.nrepl-port
-/*.iml
-/.dir-locals.el
-/classes
-/target
-/lib
-/resources
-/data
-
 # Distribution / packaging
 .Python
 env/
@@ -122,6 +112,7 @@ ENV/
 # mypy
 .mypy_cache/
 
-/data.*
+/resources
+/data
 
 .cpcache
