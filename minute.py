@@ -25,10 +25,10 @@ def parse(symbol, bs):
 
 def session():
     s = requests.session()
-    r = Retry(total=5,
+    r = Retry(total=10,
               read=5,
               connect=5,
-              backoff_factor=0.2,
+              backoff_factor=1,
               status_forcelist=[500, 502, 504])
     a = HTTPAdapter(max_retries=r)
     s.mount('http://', a)
