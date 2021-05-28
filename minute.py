@@ -10,10 +10,16 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 URL = 'https://finance.naver.com/item/sise_time.nhn'
+HEADERS = {
+    'User-Agent':
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4501.0 Safari/537.36 Edg/92.0.891.1'
+}
+
 
 def partition(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
+
 
 def parse(symbol, bs):
     values = [span.text for span in bs.findAll('span', class_='tah')]
@@ -21,7 +27,9 @@ def parse(symbol, bs):
     result = []
     for row in partition(values, 7):
         result.insert(0, [symbol, row[1], row[6], row[0]])
+
     return result
+
 
 def session():
     s = requests.session()
@@ -33,15 +41,19 @@ def session():
     a = HTTPAdapter(max_retries=r)
     s.mount('http://', a)
     s.mount('https://', a)
+
     return s
+
 
 def main(date, symbols):
     s = session()
     for symbol in symbols:
-        p = {'page': 1,
-             'code': symbol,
-             'thistime': date.replace('-', '') + '2359'}
-        r = s.get(URL, params=p)
+        p = {
+            'page': 1,
+            'code': symbol,
+            'thistime': date.replace('-', '') + '2359'
+        }
+        r = s.get(URL, params=p, headers=HEADERS)
         bs = BeautifulSoup(r.text, 'html.parser')
 
         pgRR = bs.find('td', class_='pgRR')
@@ -63,22 +75,36 @@ def main(date, symbols):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--date', default=datetime.now().strftime('%Y-%m-%d'), help='format: YYYY-MM-DD')
+    parser.add_argument('-d',
+                        '--date',
+                        default=datetime.now().strftime('%Y-%m-%d'),
+                        help='format: YYYY-MM-DD')
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-f', '--file', type=argparse.FileType('r'), help='symbol file')
+    group.add_argument('-f',
+                       '--file',
+                       type=argparse.FileType('r'),
+                       help='symbol file')
     group.add_argument('-s', '--symbol')
     args = parser.parse_args()
 
-    symbols = [args.symbol] if args.symbol else [line.rstrip() for line in args.file]
+    symbols = [args.symbol
+               ] if args.symbol else [line.rstrip() for line in args.file]
     main(args.date, symbols)
-
-
 """ codelet for debug
+#%%
+import requests
+from datetime import datetime
+from bs4 import BeautifulSoup
+#%%
 URL = 'https://finance.naver.com/item/sise_time.nhn'
-import easydict
-args = easydict.EasyDict({'symbol':'015760'})
-p = {'code': args.symbol, 'thistime': '201908192359', 'page': 1}
-r = requests.get(URL, params=p)
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4501.0 Safari/537.36 Edg/92.0.891.1'   
+}
+p = {'code': '015760', 'thistime': '20210528235959', 'page': 1}
+r = requests.get(URL, params=p, headers=HEADERS)
+print(r.url)
+#%%
 bs = BeautifulSoup(r.text, 'html.parser')
 bs.find('td', class_='pgRR') == None
 """
+# %%
