@@ -10,10 +10,6 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 URL = 'https://finance.naver.com/item/sise_time.nhn'
-HEADERS = {
-    'User-Agent':
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4501.0 Safari/537.36 Edg/92.0.891.1'
-}
 
 
 def partition(l, n):
@@ -41,6 +37,7 @@ def session():
     a = HTTPAdapter(max_retries=r)
     s.mount('http://', a)
     s.mount('https://', a)
+    s.headers['User-Agent'] = 'Mozilla/5.0'
 
     return s
 
@@ -51,9 +48,10 @@ def main(date, symbols):
         p = {
             'page': 1,
             'code': symbol,
-            'thistime': date.replace('-', '') + '2359'
+            'thistime': date.replace('-', '') + '235959'
         }
-        r = s.get(URL, params=p, headers=HEADERS)
+        r = s.get(URL, params=p)
+        # print(r.url)
         bs = BeautifulSoup(r.text, 'html.parser')
 
         pgRR = bs.find('td', class_='pgRR')
@@ -79,12 +77,14 @@ if __name__ == '__main__':
                         '--date',
                         default=datetime.now().strftime('%Y-%m-%d'),
                         help='format: YYYY-MM-DD')
+
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-f',
                        '--file',
                        type=argparse.FileType('r'),
                        help='symbol file')
     group.add_argument('-s', '--symbol')
+
     args = parser.parse_args()
 
     symbols = [args.symbol
@@ -106,5 +106,5 @@ print(r.url)
 #%%
 bs = BeautifulSoup(r.text, 'html.parser')
 bs.find('td', class_='pgRR') == None
-"""
 # %%
+"""
