@@ -9,6 +9,10 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 URL = 'https://finance.naver.com/item/sise_day.nhn'
+HEADERS = {
+    'User-Agent':
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4501.0 Safari/537.36 Edg/92.0.891.1'
+}
 
 def partition(l, n):
     for i in range(0, len(l), n):
@@ -36,7 +40,9 @@ def session():
 def main(date, symbols):
     s = session()
     for symbol in symbols:
-        r = s.get(URL, params={'code': symbol, 'page': 1})
+        r = s.get(URL, 
+                  params={'code': symbol, 'page': 1}, 
+                  headers=HEADERS)
         bs = BeautifulSoup(r.text, 'html.parser')
 
         if bs.find('td', class_='pgRR') is None:
