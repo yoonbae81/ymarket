@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert US stock data with 5-minute frequency from https://stooq.com/db/h/ into files separated by date
+Convert ticker-based files from https://stooq.com/db/h/ into date-based files
 """
 
 import argparse
