@@ -3,19 +3,6 @@
 각종 주가 데이터를 가져오는 스크립트입니다.
 
 
-## price.py
-
-다음에서 전 종목 시세를 긁어오는 스크립트입니다.
-https://finance.daum.net/domestic/all_quotes
-
-### 사용예시
-```
-$ ./price.py
-{'name': 'AJ네트웍스', 'symbol': '095570', 'price': 4720.0}
-{'name': 'AJ렌터카', 'symbol': '068400', 'price': 10550.0}
-{'name': 'AK홀딩스', 'symbol': '006840', 'price': 35150.0}
-```
-
 ## day.py
 
 네이버에서 일자별 시세를 가져오는 스크립트입니다.
