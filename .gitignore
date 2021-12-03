@@ -113,6 +113,8 @@ ENV/
 .mypy_cache/
 
 /resources
-/data
+/kr/day
+/kr/minute
+/us/output
 
 .cpcache
