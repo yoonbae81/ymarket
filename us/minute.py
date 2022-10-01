@@ -73,7 +73,7 @@ def write_files(path: Path, records: list[Record]):
         files[filename].append(r)
 
     if not path.exists():
-        path.mkdir(parent=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True)
 
     for filename, records in files.items():
         print(f'Writing {filename}')
